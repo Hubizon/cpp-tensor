@@ -29,18 +29,26 @@ void InternalTensor::Backward(bool retain_graph) {
   if (!requires_grad_)
     return;
 
-  if (backward_op_)
-    backward_op_(this);
+  // Process the node only if all its children have called Backward
+  // that way we ensure correct gradient accumulation
+  children_processed_++;
 
-  if (!is_leaf_ && !retain_graph)
-    grad_.clear();
+  if (children_processed_ >= num_children_) {
+    if (backward_op_)
+      backward_op_(this);
 
-  for (auto &p : parents_)
-    p->Backward(retain_graph);
+    if (!is_leaf_ && !retain_graph)
+      grad_.clear();
 
-  if (!retain_graph) {
-    backward_op_ = nullptr;
-    parents_.clear();
+    for (auto &p : parents_)
+      p->Backward(retain_graph);
+
+    if (!retain_graph) {
+      backward_op_ = nullptr;
+      parents_.clear();
+    }
+    
+    children_processed_ = 0;
   }
 }
 
@@ -65,6 +73,10 @@ SharedTensor ApplyOperation(const std::vector<double> &data,
   if (requires_grad) {
     res->parents_ = parents;
     res->backward_op_ = std::move(backward_op);
+    
+    for (auto &kP : parents) {
+      kP->num_children_++;
+    }
   }
 
   return res;

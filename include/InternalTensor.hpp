@@ -47,6 +47,8 @@ class InternalTensor {
   std::function<void(InternalTensor *)> backward_op_;
   bool is_leaf_ = false;
   bool requires_grad_ = false;
+  int num_children_ = 0;
+  int children_processed_ = 0;
 
   // Friend functions for performing mathematical operations on tensors with gradient calculation support
   friend SharedTensor ApplyOperation(const std::vector<double> &data,
